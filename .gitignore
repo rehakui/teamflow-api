@@ -1,0 +1,4 @@
+.env
+teamflow.db
+__pycache__/
+venv/
