@@ -17,6 +17,11 @@ from sqlalchemy import select
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import Optional
+from fastapi import HTTPException, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 
 load_dotenv()
@@ -151,16 +156,22 @@ def create_project(
     db.refresh(project)
     return {"id": project.id, "name": project.name}
 
+class TaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    due_date: Optional[str] = None
+
 @app.post("/projects/{project_id}/tasks")
 def create_task(
     project_id: int,
-    title: str,
-    description: str = "",
-    due_date: str | None = None,
-    assignee_id: int | None = None,
+    payload: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    title = payload.title
+    description = payload.description
+    due_date = payload.due_date
+
     # プロジェクト存在チェック（オーナーのみ操作可）
     project = db.execute(
         select(Project).where(Project.id == project_id, Project.owner_id == current_user.id)
@@ -173,7 +184,6 @@ def create_task(
         description=description,
         due_date=due_date,
         project_id=project_id,
-        assignee_id=assignee_id,
         status="todo",
     )
     db.add(task)
@@ -236,3 +246,23 @@ def update_task_status(
     db.commit()
     db.refresh(task)
     return {"id": task.id, "status": task.status}
+
+# 既に get_db, get_current_user, Task を使ってる前提
+@app.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.execute(select(Task).where(Task.id == task_id)).scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # もし「自分のプロジェクト配下だけ削除可」にしたいならここでチェック
+    project = db.execute(select(Project).where(Project.id == task.project_id)).scalar_one_or_none()
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    db.delete(task)
+    db.commit()
+    return {"message": "deleted", "id": task_id}
