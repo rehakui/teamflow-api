@@ -29,6 +29,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:63342",  # 今のPyCharmのURL
+        "http://127.0.0.1:63342",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],  # Authorizationを通すため必須
+)
+
 Base.metadata.create_all(bind=engine)
 
 

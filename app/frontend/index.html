@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TeamFlow</title>
+</head>
+
+<body>
+
+<h1>TeamFlow</h1>
+
+<button onclick="loadTasks()">タスクを取得</button>
+
+<ul id="taskList"></ul>
+
+<script>
+
+    async function loadTasks() {
+
+        const response = await fetch(
+            "http://127.0.0.1:8000/projects/2/tasks",
+            {
+                headers: {
+                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzcyNTk4OTM4fQ.U3TG5FeHsJ6nR9uK2HMg-6cV_I3tFtfpioJeLiRaufY"
+                }
+            }
+        )
+
+        const tasks = await response.json()
+
+        const list = document.getElementById("taskList")
+        list.innerHTML = ""
+
+        tasks.forEach(task => {
+
+            const li = document.createElement("li")
+            li.textContent = task.title + " (" + task.status + ")"
+
+            list.appendChild(li)
+
+        })
+
+    }
+
+</script>
+
+</body>
+</html>
