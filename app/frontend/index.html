@@ -1,179 +1,217 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>TeamFlow</title>
+    <meta charset="UTF-8"/>
+    <title>TeamFlow</title>
 </head>
 <body>
-  <h1>TeamFlow</h1>
+<h2>ログイン</h2>
 
-  <button onclick="loadTasks()">タスクを取得</button>
-  <hr>
+<input id="emailInput" placeholder="email"/>
+<input id="passwordInput" type="password" placeholder="password"/>
 
-  <h2>タスク追加</h2>
+<button onclick="login()">ログイン</button>
 
-  <input id="titleInput" placeholder="タイトル"/>
-  <input id="descInput" placeholder="説明"/>
-  <input id="dueInput" type="date"/>
+<p id="loginMsg"></p>
 
-  <button onclick="createTask()">追加</button>
+<hr>
+<h1>TeamFlow</h1>
 
-  <p id="msg"></p>
+<button onclick="loadTasks()">タスクを取得</button>
+<hr>
 
-  <hr>
+<h2>タスク追加</h2>
 
-  <ul id="taskList"></ul>
+<input id="titleInput" placeholder="タイトル"/>
+<input id="descInput" placeholder="説明"/>
+<input id="dueInput" type="date"/>
 
-  <script>
-      const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzcyNjA0NDg4fQ.Hr5D_97bp2kQ8PStDn4O4g27pR-jF5sQJihOAUmS3gM";
-      const PROJECT_ID = 2;
-      const API_BASE = "http://127.0.0.1:8000";
+<button onclick="createTask()">追加</button>
 
-      async function loadTasks() {
-        const list = document.getElementById("taskList");
-        list.innerHTML = "<li>読み込み中...</li>";
+<p id="msg"></p>
 
-        try {
-          const response = await fetch("http://127.0.0.1:8000/projects/2/tasks", {
-            headers: {
-              "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzcyNjA0NDg4fQ.Hr5D_97bp2kQ8PStDn4O4g27pR-jF5sQJihOAUmS3gM"
-            }
-          });
+<hr>
 
-          if (!response.ok) {
-            const text = await response.text();
-            list.innerHTML = `<li>HTTP ${response.status}: <pre>${text}</pre></li>`;
-            return;
-          }
+<ul id="taskList"></ul>
 
-          const tasks = await response.json();
+<script>
+    let TOKEN = null;
+    const PROJECT_ID = 2;
+    const API_BASE = "http://127.0.0.1:8000";
 
-          // 表示をリセット
-          list.innerHTML = "";
+    async function login() {
 
-          // 0件のとき
-          if (tasks.length === 0) {
-            list.innerHTML = "<li>タスクがありません</li>";
-            return;
-          }
+      const email = document.getElementById("emailInput").value;
+      const password = document.getElementById("passwordInput").value;
 
-          // タスクを表示
-          tasks.forEach(task => {
-            const li = document.createElement("li");
+      const response = await fetch("http://127.0.0.1:8000/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          username: email,
+          password: password
+        })
+      });
 
-            const due = task.due_date ? ` / 期限: ${task.due_date}` : "";
-            li.textContent = `${task.title} (${task.status})${due}`;
+      const data = await response.json();
 
-            // todo のときだけ完了ボタン
-            if (task.status !== "done") {
-              const btn = document.createElement("button");
-              btn.textContent = "完了";
-              btn.onclick = () => completeTask(task.id);
-
-              li.appendChild(btn);
-            }
-
-            // 削除ボタン
-            const delBtn = document.createElement("button");
-            delBtn.textContent = "削除";
-            delBtn.style.marginLeft = "8px";
-            delBtn.onclick = () => deleteTask(task.id);
-            li.appendChild(delBtn);
-
-            list.appendChild(li);
-          });
-
-        } catch (e) {
-          list.innerHTML = `<li>エラー: ${e}</li>`;
-        }
-      }
-      async function completeTask(taskId) {
-
-        const response = await fetch(
-          `http://127.0.0.1:8000/tasks/${taskId}/status?status=done`,
-          {
-            method: "PATCH",
-            headers: {
-              "Authorization": `Bearer ${TOKEN}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          alert("更新失敗");
-          return;
-        }
-
-        // 更新後に再読み込み
-        loadTasks();
+      if (!response.ok) {
+        document.getElementById("loginMsg").textContent = "ログイン失敗";
+        return;
       }
 
-      async function deleteTask(taskId) {
-        if (!confirm("削除しますか？")) return;
+      TOKEN = data.access_token;
 
-        const response = await fetch(
-          `http://127.0.0.1:8000/tasks/${taskId}`,
-          {
-            method: "DELETE",
-            headers: {
-              "Authorization": `Bearer ${TOKEN}`
-            }
+      document.getElementById("loginMsg").textContent = "ログイン成功";
+    }
+
+    async function loadTasks() {
+      const list = document.getElementById("taskList");
+      list.innerHTML = "<li>読み込み中...</li>";
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/projects/2/tasks", {
+          headers: {
+            "Authorization": `Bearer ${TOKEN}`
           }
-        );
+        });
 
         if (!response.ok) {
           const text = await response.text();
-          alert("削除失敗: " + text);
+          list.innerHTML = `<li>HTTP ${response.status}: <pre>${text}</pre></li>`;
           return;
         }
 
-        loadTasks();
-      }
+        const tasks = await response.json();
 
-      async function createTask() {
-        const msg = document.getElementById("msg");
-        msg.textContent = "追加中...";
+        // 表示をリセット
+        list.innerHTML = "";
 
-        const title = document.getElementById("titleInput").value.trim();
-        const description = document.getElementById("descInput").value.trim();
-        const due_date = document.getElementById("dueInput").value || null;
-
-        if (!title) {
-          msg.textContent = "タイトルは必須です";
+        // 0件のとき
+        if (tasks.length === 0) {
+          list.innerHTML = "<li>タスクがありません</li>";
           return;
         }
 
-        try {
-          const response = await fetch(`${API_BASE}/projects/${PROJECT_ID}/tasks`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ title, description, due_date })
-          });
+        // タスクを表示
+        tasks.forEach(task => {
+          const li = document.createElement("li");
 
-          const text = await response.text();
+          const due = task.due_date ? ` / 期限: ${task.due_date}` : "";
+          li.textContent = `${task.title} (${task.status})${due}`;
 
-          if (!response.ok) {
-            msg.innerHTML = `失敗: HTTP ${response.status}<br><pre>${text}</pre>`;
-            return;
+          // todo のときだけ完了ボタン
+          if (task.status !== "done") {
+            const btn = document.createElement("button");
+            btn.textContent = "完了";
+            btn.onclick = () => completeTask(task.id);
+
+            li.appendChild(btn);
           }
 
-          msg.textContent = "追加しました ✅";
+          // 削除ボタン
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "削除";
+          delBtn.style.marginLeft = "8px";
+          delBtn.onclick = () => deleteTask(task.id);
+          li.appendChild(delBtn);
 
-          // 入力をクリア
-          document.getElementById("titleInput").value = "";
-          document.getElementById("descInput").value = "";
-          document.getElementById("dueInput").value = "";
+          list.appendChild(li);
+        });
 
-          // 一覧を再取得して画面更新
-          await loadTasks();
-
-        } catch (e) {
-          msg.textContent = `エラー: ${e}`;
+      } catch (e) {
+        list.innerHTML = `<li>エラー: ${e}</li>`;
       }
-  }
-  </script>
+    }
+    async function completeTask(taskId) {
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/tasks/${taskId}/status?status=done`,
+        {
+          method: "PATCH",
+          headers: {
+            "Authorization": `Bearer ${TOKEN}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        alert("更新失敗");
+        return;
+      }
+
+      // 更新後に再読み込み
+      loadTasks();
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm("削除しますか？")) return;
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/tasks/${taskId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${TOKEN}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        alert("削除失敗: " + text);
+        return;
+      }
+
+      loadTasks();
+    }
+
+    async function createTask() {
+      const msg = document.getElementById("msg");
+      msg.textContent = "追加中...";
+
+      const title = document.getElementById("titleInput").value.trim();
+      const description = document.getElementById("descInput").value.trim();
+      const due_date = document.getElementById("dueInput").value || null;
+
+      if (!title) {
+        msg.textContent = "タイトルは必須です";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/projects/${PROJECT_ID}/tasks`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ title, description, due_date })
+        });
+
+        const text = await response.text();
+
+        if (!response.ok) {
+          msg.innerHTML = `失敗: HTTP ${response.status}<br><pre>${text}</pre>`;
+          return;
+        }
+
+        msg.textContent = "追加しました ✅";
+
+        // 入力をクリア
+        document.getElementById("titleInput").value = "";
+        document.getElementById("descInput").value = "";
+        document.getElementById("dueInput").value = "";
+
+        // 一覧を再取得して画面更新
+        await loadTasks();
+
+      } catch (e) {
+        msg.textContent = `エラー: ${e}`;
+    }
+}
+</script>
 </body>
 </html>
